@@ -6,19 +6,22 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class EditarProductoActivity extends AppCompatActivity {
-    EditText edtNombre, edtDescrip,edtPrecio, edtStock, edtUrl;
+    EditText edtNombre, edtDescrip, edtPrecio, edtStock, edtUrl;
     Button btnActualizar, btnCancelar, btnEliminar;
     DatabaseHelper databaseHelper;
     int productoId;
+    ExecutorService executorService;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_editar_producto);
 
         edtNombre = findViewById(R.id.edtNombre);
@@ -30,11 +33,13 @@ public class EditarProductoActivity extends AppCompatActivity {
         btnActualizar = findViewById(R.id.btnActualizar);
         btnCancelar = findViewById(R.id.btnCancelar);
         btnEliminar = findViewById(R.id.btnEliminar);
-        databaseHelper = new DatabaseHelper(this);
+        databaseHelper = new DatabaseHelper();
+
+        // Crear un ExecutorService con un solo hilo
+        executorService = Executors.newSingleThreadExecutor();
 
         // Obtener datos enviados desde el RecyclerView
         Intent intent = getIntent();
-
         if (intent != null) {
             productoId = intent.getIntExtra("id", -1);
             String nombre = intent.getStringExtra("nombre");
@@ -58,12 +63,26 @@ public class EditarProductoActivity extends AppCompatActivity {
             int nuevoStock = Integer.parseInt(edtStock.getText().toString());
             String nuevoUrl = edtUrl.getText().toString();
 
-            if (databaseHelper.actualizarProducto(productoId, nuevoNombre, nuevoDescrip, nuevoPrecio, nuevoStock, nuevoUrl) > 0) {
-                Toast.makeText(this, "Producto actualizado", Toast.LENGTH_SHORT).show();
-                finish();
-            } else {
-                Toast.makeText(this, "Error al actualizar", Toast.LENGTH_SHORT).show();
-            }
+            // Ejecutar la actualización en un hilo en segundo plano
+            executorService.execute(() -> {
+                try {
+                    // Intentar actualizar el producto en la base de datos
+                    boolean actualizado = databaseHelper.actualizarProducto(productoId, nuevoNombre, nuevoDescrip, nuevoPrecio, nuevoStock, nuevoUrl) > 0;
+
+                    // Usar runOnUiThread para actualizar la interfaz de usuario en el hilo principal
+                    runOnUiThread(() -> {
+                        if (actualizado) {
+                            Toast.makeText(EditarProductoActivity.this, "Producto actualizado", Toast.LENGTH_SHORT).show();
+                            finish();
+                        } else {
+                            Toast.makeText(EditarProductoActivity.this, "Error al actualizar", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    runOnUiThread(() -> Toast.makeText(EditarProductoActivity.this, "Error al actualizar", Toast.LENGTH_SHORT).show());
+                }
+            });
         });
 
         // Botón para cancelar la edición
@@ -71,19 +90,32 @@ public class EditarProductoActivity extends AppCompatActivity {
 
         // Botón para eliminar producto
         btnEliminar.setOnClickListener(view -> mostrarDialogoConfirmacion());
-
     }
+
     private void mostrarDialogoConfirmacion() {
         new AlertDialog.Builder(this)
                 .setTitle("Eliminar Producto")
                 .setMessage("¿Estás seguro que deseas eliminar este producto?")
                 .setPositiveButton("Sí", (dialog, which) -> {
-                    if (databaseHelper.eliminarProducto(productoId) > 0) {
-                        Toast.makeText(this, "Producto eliminado", Toast.LENGTH_SHORT).show();
-                        finish();
-                    } else {
-                        Toast.makeText(this, "Error al eliminar", Toast.LENGTH_SHORT).show();
-                    }
+                    // Ejecutar la eliminación en un hilo en segundo plano
+                    executorService.execute(() -> {
+                        try {
+                            boolean eliminado = databaseHelper.eliminarProducto(productoId) > 0;
+
+                            // Usar runOnUiThread para actualizar la interfaz de usuario en el hilo principal
+                            runOnUiThread(() -> {
+                                if (eliminado) {
+                                    Toast.makeText(EditarProductoActivity.this, "Producto eliminado", Toast.LENGTH_SHORT).show();
+                                    finish();
+                                } else {
+                                    Toast.makeText(EditarProductoActivity.this, "Error al eliminar", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            runOnUiThread(() -> Toast.makeText(EditarProductoActivity.this, "Error al eliminar", Toast.LENGTH_SHORT).show());
+                        }
+                    });
                 })
                 .setNegativeButton("No", null)
                 .show();

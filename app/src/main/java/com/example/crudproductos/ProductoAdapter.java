@@ -99,7 +99,7 @@ public class ProductoAdapter extends RecyclerView.Adapter<ProductoAdapter.ViewHo
 
     public void eliminarProducto(int position) {
         Producto producto = listaProductos.get(position);
-        DatabaseHelper db = new DatabaseHelper(context);
+        DatabaseHelper db = new DatabaseHelper();
         if (db.eliminarProducto(producto.getId()) > 0) {
             listaProductos.remove(position);
             notifyItemRemoved(position);

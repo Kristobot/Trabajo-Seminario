@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
         btnAgregarProducto = findViewById(R.id.btnAgregarProducto);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        databaseHelper = new DatabaseHelper(this);
+        databaseHelper = new DatabaseHelper();
         Log.d("DB_DEBUG", "Cantidad de productos: " + databaseHelper.contarRegistros());
         actualizarLista();
 
